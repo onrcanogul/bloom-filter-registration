@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api")
 public class RegistrationController {
@@ -31,6 +33,12 @@ public class RegistrationController {
     public RegistrationResult register(@Valid @RequestBody RegistrationRequest request,
                                        @RequestParam(defaultValue = "true") boolean useBloom) {
         return service.register(request, useBloom);
+    }
+
+    /** A few random existing usernames, so the UI can offer taken names to try. */
+    @GetMapping("/users/samples")
+    public List<String> samples(@RequestParam(defaultValue = "5") int count) {
+        return service.sampleTakenUsernames(Math.clamp(count, 1, 20));
     }
 
     @GetMapping("/stats")

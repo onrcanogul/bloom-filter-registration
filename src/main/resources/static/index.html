@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bloom Kayıt</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="page-header">
+    <h1>Bloom filter ile kullanıcı kaydı</h1>
+    <p>Kullanıcı adı müsaitliği önce bellekteki Guava Bloom filter'a sorulur. Filtre <em>"kesinlikle yok"</em>
+        derse veritabanına hiç gidilmez; <em>"olabilir"</em> derse veritabanı doğrular.</p>
+</header>
+
+<section class="stats" aria-label="Anlık istatistikler">
+    <div class="stat"><span class="stat-label">Kayıtlı kullanıcı</span><span class="stat-value" id="stat-users">–</span></div>
+    <div class="stat"><span class="stat-label">Bloom filter boyutu</span><span class="stat-value" id="stat-size">–</span></div>
+    <div class="stat"><span class="stat-label">Güncel yanlış pozitif olasılığı</span><span class="stat-value" id="stat-fpp">–</span></div>
+    <div class="stat"><span class="stat-label">Atlanan DB sorgusu</span><span class="stat-value" id="stat-skipped">–</span></div>
+    <div class="stat"><span class="stat-label">DB sorgusu / yanlış pozitif</span><span class="stat-value" id="stat-db">–</span></div>
+</section>
+
+<main class="grid">
+    <section class="card" aria-labelledby="form-title">
+        <div class="card-head">
+            <h2 id="form-title">Kayıt formu</h2>
+            <label class="switch">
+                <input type="checkbox" id="use-bloom" checked>
+                <span class="switch-track" aria-hidden="true"></span>
+                <span>Bloom filter kullan</span>
+            </label>
+        </div>
+
+        <form id="register-form" novalidate>
+            <div class="field">
+                <label for="username">Kullanıcı adı</label>
+                <input id="username" name="username" autocomplete="off" spellcheck="false" maxlength="32" required>
+                <div class="pipeline" id="pipeline" aria-live="polite">
+                    <span class="step" data-step="bloom">Bloom filter</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                    <span class="step" data-step="db">Veritabanı</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                    <span class="step" data-step="result">Sonuç</span>
+                </div>
+                <p class="hint" id="username-status">Yazmaya başlayın; her tuşta müsaitlik kontrol edilir.</p>
+                <p class="error" data-error-for="username"></p>
+                <div class="samples">
+                    <span>Alınmış isim dene:</span>
+                    <span id="sample-list"></span>
+                </div>
+            </div>
+            <div class="field">
+                <label for="email">E-posta</label>
+                <input id="email" name="email" type="email" autocomplete="email" required>
+                <p class="error" data-error-for="email"></p>
+            </div>
+            <div class="field">
+                <label for="password">Şifre</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" required>
+                <p class="error" data-error-for="password"></p>
+            </div>
+            <button type="submit" class="primary" id="submit">Kayıt ol</button>
+            <p class="form-message" id="form-message" role="status"></p>
+        </form>
+    </section>
+
+    <section class="card" aria-labelledby="log-title">
+        <div class="card-head">
+            <h2 id="log-title">Son kontroller</h2>
+            <span class="muted">en yeni üstte</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr><th>Kullanıcı adı</th><th>Bloom</th><th>DB</th><th>Sonuç</th><th class="num">Süre</th></tr>
+                </thead>
+                <tbody id="log-body">
+                <tr class="empty"><td colspan="5">Henüz kontrol yok</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card wide" aria-labelledby="bench-title">
+        <div class="card-head">
+            <h2 id="bench-title">Karşılaştırma: Bloom'lu ve Bloom'suz</h2>
+            <span class="muted">aynı kullanıcı adı listesi iki modda da kontrol edilir</span>
+        </div>
+        <form id="bench-form" class="bench-form">
+            <label>Kontrol sayısı
+                <input type="number" id="bench-lookups" value="2000" min="100" max="20000" step="100">
+            </label>
+            <label>Alınmış isim oranı
+                <span class="range-row"><input type="range" id="bench-ratio" min="0" max="100" value="20"><output id="bench-ratio-out">%20</output></span>
+            </label>
+            <label>DB gecikmesi (µs)
+                <input type="number" id="bench-latency" value="1000" min="0" max="20000" step="100">
+            </label>
+            <button type="submit" class="primary" id="bench-run">Çalıştır</button>
+        </form>
+        <div id="bench-result" class="bench-result" hidden>
+            <p class="bench-summary" id="bench-summary"></p>
+            <div class="bars">
+                <div class="bar-group">
+                    <h3>Veritabanı sorgusu</h3>
+                    <div class="bar-row"><span>Bloom'suz</span><div class="bar"><div class="fill fill-off" id="bar-db-off"></div></div><span class="num" id="val-db-off"></span></div>
+                    <div class="bar-row"><span>Bloom'lu</span><div class="bar"><div class="fill fill-on" id="bar-db-on"></div></div><span class="num" id="val-db-on"></span></div>
+                </div>
+                <div class="bar-group">
+                    <h3>Toplam süre</h3>
+                    <div class="bar-row"><span>Bloom'suz</span><div class="bar"><div class="fill fill-off" id="bar-time-off"></div></div><span class="num" id="val-time-off"></span></div>
+                    <div class="bar-row"><span>Bloom'lu</span><div class="bar"><div class="fill fill-on" id="bar-time-on"></div></div><span class="num" id="val-time-on"></span></div>
+                </div>
+            </div>
+            <dl class="facts" id="bench-facts"></dl>
+        </div>
+    </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import com.example.bloom.user.UserRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -63,6 +64,10 @@ public class RegistrationService {
         }
         bloomFilter.put(availability.username());
         return new RegistrationResult(availability.username(), email, availability);
+    }
+
+    public List<String> sampleTakenUsernames(int count) {
+        return repository.randomUsernames(count);
     }
 
     public Stats stats() {
