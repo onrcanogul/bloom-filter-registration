@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * In-memory index of every taken username, backed by Guava's {@link BloomFilter}.
@@ -38,10 +39,14 @@ public class UsernameBloomFilter {
         this.filter = BloomFilter.create(Funnels.stringFunnel(StandardCharsets.UTF_8), expectedInsertions, falsePositiveRate);
 
         long start = System.nanoTime();
-        repository.forEachUsername(filter::put);
-        log.info("Bloom filter warmed with {} usernames in {} ms ({} KB, expected FPP {})",
-                seeder.seededUsers(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start),
-                sizeInBytes() / 1024, String.format("%.4f", filter.expectedFpp()));
+        AtomicLong loaded = new AtomicLong();
+        repository.forEachUsername(username -> {
+            filter.put(username);
+            loaded.incrementAndGet();
+        });
+        log.info("Bloom filter warmed with {} usernames in {} ms ({} KB, current FPP {})",
+                loaded.get(), TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start),
+                sizeInBytes() / 1024, String.format("%.6f", filter.expectedFpp()));
     }
 
     /** {@code false} = definitely not taken; {@code true} = maybe taken, ask the database. */
