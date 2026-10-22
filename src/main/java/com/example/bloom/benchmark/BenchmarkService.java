@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Runs the same set of availability checks with and without the Bloom filter and compares
@@ -51,10 +53,20 @@ public class BenchmarkService {
     private List<String> buildProbes(int lookups, double takenRatio) {
         int taken = (int) Math.round(lookups * takenRatio);
         List<String> probes = new ArrayList<>(repository.randomUsernames(taken));
+
+        // Realistic new names often collide with the 200k existing ones ("ayse1234"), so drop
+        // collisions up front to keep the taken/new split exactly as requested.
         MockUserGenerator candidates = new MockUserGenerator(System.nanoTime());
-        while (probes.size() < lookups) {
-            probes.add(candidates.nextUsername());
+        Set<String> fresh = new LinkedHashSet<>();
+        while (fresh.size() < lookups - taken) {
+            List<String> batch = new ArrayList<>();
+            for (int i = 0; i < 1_000; i++) {
+                batch.add(candidates.nextUsername());
+            }
+            batch.removeAll(repository.findExistingUsernames(batch));
+            batch.stream().limit(lookups - taken - fresh.size()).forEach(fresh::add);
         }
+        probes.addAll(fresh);
         Collections.shuffle(probes, new Random());
         return probes;
     }

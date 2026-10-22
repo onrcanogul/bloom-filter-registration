@@ -3,7 +3,11 @@ package com.example.bloom.user;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -51,6 +55,19 @@ public class UserRepository {
 
     public List<String> randomUsernames(int limit) {
         return jdbc.queryForList("SELECT username FROM users ORDER BY RAND() LIMIT ?", String.class, limit);
+    }
+
+    /**
+     * Bulk existence check used only to prepare benchmark data: not counted and not delayed,
+     * because it is not part of what the benchmark measures.
+     */
+    public Set<String> findExistingUsernames(Collection<String> usernames) {
+        if (usernames.isEmpty()) {
+            return Set.of();
+        }
+        String placeholders = String.join(",", Collections.nCopies(usernames.size(), "?"));
+        return new HashSet<>(jdbc.queryForList("SELECT username FROM users WHERE username IN (" + placeholders + ")",
+                String.class, usernames.toArray()));
     }
 
     public long count() {

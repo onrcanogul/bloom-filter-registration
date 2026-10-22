@@ -58,5 +58,6 @@ class UserRepositoryTest {
         assertThat(repository.count()).isEqualTo(3);
         assertThat(seen).containsExactlyInAnyOrder("u1", "u2", "u3");
         assertThat(repository.randomUsernames(2)).hasSize(2).isSubsetOf(seen);
+        assertThat(repository.findExistingUsernames(List.of("u1", "nope", "u3"))).containsExactlyInAnyOrder("u1", "u3");
     }
 }

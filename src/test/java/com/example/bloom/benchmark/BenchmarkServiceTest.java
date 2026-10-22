@@ -29,6 +29,13 @@ class BenchmarkServiceTest {
     }
 
     @Test
+    void honoursTheRequestedTakenRatioExactly() {
+        BenchmarkResult result = benchmark.run(new BenchmarkRequest(1_000, 0.3, 0));
+
+        assertThat(result.takenProbes()).isEqualTo(300);
+    }
+
+    @Test
     void restoresConfiguredLatencyAfterTheRun() {
         benchmark.run(new BenchmarkRequest(50, 0.5, 300));
 
